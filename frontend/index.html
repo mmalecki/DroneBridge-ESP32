@@ -180,6 +180,127 @@
                     <input type="text" name="ap_ip" value="" id="ap_ip">
                 </div>
             </div>
+            <section id="camera" style="display: block">
+                <h3>Camera</h3>
+                <div class="row">
+                    <div class="three columns">
+                        <label for="cam_pin_siod">SIOD Pin</label>
+                        <input type="text" name="cam_pin_siod" value="" id="cam_pin_siod">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_sioc">SIOC Pin</label>
+                        <input type="text" name="cam_pin_sioc" value="" id="cam_pin_sioc">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_xclk">XCLK Pin</label>
+                        <input type="text" name="cam_pin_xclk" value="" id="cam_pin_xclk">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="three columns">
+                        <label for="cam_pin_vsync">VSYNC Pin</label>
+                        <input type="text" name="cam_pin_vsync" value="" id="cam_pin_vsync">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_href">HREF Pin</label>
+                        <input type="text" name="cam_pin_href" value="" id="cam_pin_href">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_pclk">PCLK Pin</label>
+                        <input type="text" name="cam_pin_pclk" value="" id="cam_pin_pclk">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="three columns">
+                        <label for="cam_pin_pwdn">PWDN Pin</label>
+                        <input type="text" name="cam_pin_pwdn" value="" id="cam_pin_pwdn">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_reset">RESET Pin</label>
+                        <input type="text" name="cam_pin_reset" value="" id="cam_pin_reset">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="three columns">
+                        <label for="cam_pin_y2">Y2 Pin</label>
+                        <input type="text" name="cam_pin_y2" value="" id="cam_pin_y2">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_y3">Y3 Pin</label>
+                        <input type="text" name="cam_pin_y3" value="" id="cam_pin_y3">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_y4">Y4 Pin</label>
+                        <input type="text" name="cam_pin_y4" value="" id="cam_pin_y4">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="three columns">
+                        <label for="cam_pin_y5">Y5 Pin</label>
+                        <input type="text" name="cam_pin_y5" value="" id="cam_pin_y5">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_y6">Y6 Pin</label>
+                        <input type="text" name="cam_pin_y6" value="" id="cam_pin_y6">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_y7">Y7 Pin</label>
+                        <input type="text" name="cam_pin_y7" value="" id="cam_pin_y7">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="three columns">
+                        <label for="cam_pin_y8">Y8 Pin</label>
+                        <input type="text" name="cam_pin_y8" value="" id="cam_pin_y8">
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_pin_y9">Y9 Pin</label>
+                        <input type="text" name="cam_pin_y9" value="" id="cam_pin_y9">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="three columns">
+                        <label for="cam_frame_size">Frame size</label>
+                        <select name="cam_frame_size" id="cam_frame_size" form="settings_form">
+                            <option value="0">96X96   (96x96)</option>
+                            <option value="1">QQVGA   (160x120)</option>
+                            <option value="2">QCIF    (176x144)</option>
+                            <option value="3">HQVGA   (240x176)</option>
+                            <option value="4">240X240 (240x240)</option>
+                            <option value="5">QVGA    (320x240)</option>
+                            <option value="6">CIF     (400x296)</option>
+                            <option value="7">HVGA    (480x320)</option>
+                            <option value="8">VGA     (640x480)</option>
+                            <option value="9">SVGA    (800x600)</option>
+                            <option value="10">XGA    (1024x768)</option>
+                            <option value="11">HD     (1280x720)</option>
+                            <option value="12">SXGA   (1280x1024)</option>
+                            <option value="13">UXGA   (1600x1200)</option>
+                            <option value="14">FHD    (1920x1080)</option>
+                            <option value="15">P_HD   ( 720x1280)</option>
+                            <option value="16">P_3MP  ( 864x1536)</option>
+                            <option value="17">QXGA   (2048x1536)</option>
+                            <option value="18">QHD    (2560x1440)</option>
+                            <option value="19">WQXGA  (2560x1600)</option>
+                            <option value="20">P_FHD  (1080x1920)</option>
+                            <option value="21">QSXGA  (2560x1920)</option>
+                        </select>
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_jpeg_quality">JPEG quality (lower is better)</label>
+                        <input type="number" name="cam_jpeg_quality" min="0" max="63" value="" id="cam_jpeg_quality" />
+                    </div>
+                    <div class="three columns">
+                        <label for="cam_fps">FPS</label>
+                        <input type="number" id="cam_fps" name="cam_fps" min="1" max="63" value="" />
+                    </div>
+                </div>
+                <details ontoggle="toggle_camera_preview()">
+                    <summary>Camera preview</summary>
+                    <p id="cam_preview_loading">Loading...</p>
+                    <div id="cam_preview_container"></div>
+                </details>
+            </section>
         </div>
     </form>
     <div class="row">

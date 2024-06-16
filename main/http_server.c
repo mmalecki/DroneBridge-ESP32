@@ -31,6 +31,10 @@
 #include "main.h"
 #include "db_serial.h"
 
+#ifdef CONFIG_ENABLE_CAMERA
+#include "camera.h"
+#endif
+
 static const char *REST_TAG = "DB_HTTP_REST";
 #define REST_CHECK(a, str, goto_tag, ...)                                              \
     do                                                                                 \
@@ -215,6 +219,34 @@ static esp_err_t settings_post_handler(httpd_req_t *req) {
     } else if (json) {
         ESP_LOGE(REST_TAG, "New IP \"%s\" is not a valid IP address! Not changing!", json->valuestring);
     }
+
+#ifdef CONFIG_ENABLE_CAMERA
+
+#define SETTING_SET(SETTING, FIELD) \
+    json = cJSON_GetObjectItem(root, FIELD); \
+    if (json) SETTING = json->valueint;
+
+    SETTING_SET(DB_CAM_PIN_PWDN, "cam_pin_pwdn");
+    SETTING_SET(DB_CAM_PIN_RESET, "cam_pin_reset");
+    SETTING_SET(DB_CAM_PIN_XCLK, "cam_pin_xclk");
+    SETTING_SET(DB_CAM_PIN_SIOD, "cam_pin_siod");
+    SETTING_SET(DB_CAM_PIN_SIOC, "cam_pin_sioc");
+    SETTING_SET(DB_CAM_PIN_Y9, "cam_pin_y9");
+    SETTING_SET(DB_CAM_PIN_Y8, "cam_pin_y8");
+    SETTING_SET(DB_CAM_PIN_Y7, "cam_pin_y7");
+    SETTING_SET(DB_CAM_PIN_Y6, "cam_pin_y6");
+    SETTING_SET(DB_CAM_PIN_Y5, "cam_pin_y5");
+    SETTING_SET(DB_CAM_PIN_Y4, "cam_pin_y4");
+    SETTING_SET(DB_CAM_PIN_Y3, "cam_pin_y3");
+    SETTING_SET(DB_CAM_PIN_Y2, "cam_pin_y2");
+    SETTING_SET(DB_CAM_PIN_VSYNC, "cam_pin_vsync");
+    SETTING_SET(DB_CAM_PIN_HREF, "cam_pin_href");
+    SETTING_SET(DB_CAM_PIN_PCLK, "cam_pin_pclk");
+    SETTING_SET(DB_CAM_FPS, "cam_fps");
+    SETTING_SET(DB_CAM_JPG_QUALITY, "cam_jpeg_quality");
+    SETTING_SET(DB_CAM_FRAME_SIZE, "cam_frame_size");
+#endif
+
     write_settings_to_nvs();
     ESP_LOGI(REST_TAG, "Settings changed!");
     cJSON_Delete(root);
@@ -513,10 +545,35 @@ static esp_err_t settings_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "static_client_ip", DB_STATIC_STA_IP);
     cJSON_AddStringToObject(root, "static_netmask", DB_STATIC_STA_IP_NETMASK);
     cJSON_AddStringToObject(root, "static_gw_ip", DB_STATIC_STA_IP_GW);
+
+#ifdef CONFIG_ENABLE_CAMERA
+    cJSON_AddNumberToObject(root, "cam_pin_pwdn", DB_CAM_PIN_PWDN);
+    cJSON_AddNumberToObject(root, "cam_pin_reset", DB_CAM_PIN_RESET);
+    cJSON_AddNumberToObject(root, "cam_pin_xclk", DB_CAM_PIN_XCLK);
+    cJSON_AddNumberToObject(root, "cam_pin_siod", DB_CAM_PIN_SIOD); 
+    cJSON_AddNumberToObject(root, "cam_pin_sioc", DB_CAM_PIN_SIOC); 
+    cJSON_AddNumberToObject(root, "cam_pin_y9", DB_CAM_PIN_Y9);   
+    cJSON_AddNumberToObject(root, "cam_pin_y8", DB_CAM_PIN_Y8);  
+    cJSON_AddNumberToObject(root, "cam_pin_y7", DB_CAM_PIN_Y7);  
+    cJSON_AddNumberToObject(root, "cam_pin_y6", DB_CAM_PIN_Y6);  
+    cJSON_AddNumberToObject(root, "cam_pin_y5", DB_CAM_PIN_Y5);  
+    cJSON_AddNumberToObject(root, "cam_pin_y4", DB_CAM_PIN_Y4);  
+    cJSON_AddNumberToObject(root, "cam_pin_y3", DB_CAM_PIN_Y3);  
+    cJSON_AddNumberToObject(root, "cam_pin_y2", DB_CAM_PIN_Y2);  
+    cJSON_AddNumberToObject(root, "cam_pin_vsync", DB_CAM_PIN_VSYNC);
+    cJSON_AddNumberToObject(root, "cam_pin_href", DB_CAM_PIN_HREF);
+    cJSON_AddNumberToObject(root, "cam_pin_pclk", DB_CAM_PIN_PCLK);
+    cJSON_AddNumberToObject(root, "cam_xclk_freq", DB_CAM_XCLK_FREQ);
+    cJSON_AddNumberToObject(root, "cam_fps", DB_CAM_FPS);
+    cJSON_AddNumberToObject(root, "cam_jpeg_quality", DB_CAM_JPG_QUALITY);
+    cJSON_AddNumberToObject(root, "cam_frame_size", DB_CAM_FRAME_SIZE);
+#endif
+
     const char *sys_info = cJSON_Print(root);
     httpd_resp_sendstr(req, sys_info);
     free((void *) sys_info);
     cJSON_Delete(root);
+
     return ESP_OK;
 }
 
@@ -529,7 +586,7 @@ esp_err_t start_rest_server(const char *base_path) {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
-    config.max_uri_handlers = 9;
+    config.max_uri_handlers = 20;
 
     ESP_LOGI(REST_TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
@@ -604,6 +661,26 @@ esp_err_t start_rest_server(const char *base_path) {
             .user_ctx = rest_context
     };
     httpd_register_uri_handler(server, &settings_static_ip_port_uri);
+
+#ifdef CONFIG_ENABLE_CAMERA
+    /* URI handler for getting a single frame from the camera */
+    httpd_uri_t camera_frame_get_uri = {
+            .uri = "/api/camera/frame",
+            .method = HTTP_GET,
+            .handler = camera_frame_get_handler,
+            .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &camera_frame_get_uri);
+
+    /* URI handler for getting a stream from the camera */
+    httpd_uri_t camera_stream_get_uri = {
+            .uri = "/api/camera/stream",
+            .method = HTTP_GET,
+            .handler = camera_stream_get_handler,
+            .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &camera_stream_get_uri);
+#endif
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {

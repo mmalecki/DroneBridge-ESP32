@@ -22,6 +22,11 @@
 
 #include <freertos/event_groups.h>
 #include <esp_wifi_types.h>
+
+#ifdef CONFIG_ENABLE_CAMERA
+#include <esp_camera.h>
+#endif
+
 #include "db_esp32_control.h"
 
 #define MAX_LTM_FRAMES_IN_BUFFER 5
@@ -48,6 +53,29 @@ extern uint8_t DB_LTM_FRAME_NUM_BUFFER;    // Number of LTM frames per UDP packe
 extern char DB_STATIC_STA_IP[IP4ADDR_STRLEN_MAX];   // user can specify static IP when in Wi-Fi client mode. If this is empty use auto IP
 extern char DB_STATIC_STA_IP_GW[IP4ADDR_STRLEN_MAX];// if DB_STATIC_STA_IP is set then this must be set to the GW IP
 extern char DB_STATIC_STA_IP_NETMASK[IP4ADDR_STRLEN_MAX]; // netmask when settings static IP in Wi-Fi client mode
+
+#ifdef CONFIG_ENABLE_CAMERA
+extern uint8_t DB_CAM_PIN_PWDN ;
+extern uint8_t DB_CAM_PIN_RESET;
+extern uint8_t DB_CAM_PIN_XCLK ;
+extern uint8_t DB_CAM_PIN_SIOD;
+extern uint8_t DB_CAM_PIN_SIOC;
+extern uint8_t DB_CAM_PIN_Y9;
+extern uint8_t DB_CAM_PIN_Y8;
+extern uint8_t DB_CAM_PIN_Y7;
+extern uint8_t DB_CAM_PIN_Y6;
+extern uint8_t DB_CAM_PIN_Y5;
+extern uint8_t DB_CAM_PIN_Y4;
+extern uint8_t DB_CAM_PIN_Y3;
+extern uint8_t DB_CAM_PIN_Y2;
+extern uint8_t DB_CAM_PIN_VSYNC;
+extern uint8_t DB_CAM_PIN_HREF;
+extern uint8_t DB_CAM_PIN_PCLK;
+extern int32_t DB_CAM_XCLK_FREQ;
+extern uint8_t DB_CAM_FPS;
+extern uint8_t DB_CAM_JPG_QUALITY;
+extern uint8_t DB_CAM_FRAME_SIZE;
+#endif
 
 extern db_esp_signal_quality_t db_esp_signal_quality;   // used on AIR/station side to store RSSI information
 extern wifi_sta_list_t wifi_sta_list;      // updated when ESP32 is in ap mode. Contains RSSI of every connected station

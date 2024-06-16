@@ -112,10 +112,14 @@ async function send_json(api_path, json_data = undefined) {
 
 function get_system_info() {
 	get_json("api/system/info").then(json_data => {
-		console.log("Received settings: " + json_data)
+		console.log("Received system info: " + json_data)
 		document.getElementById("about").innerHTML = "DroneBridge for ESP32 - v" + json_data["major_version"] +
 			"." + json_data["minor_version"] + " - esp-idf " + json_data["idf_version"]
 		document.getElementById("esp_mac").innerHTML = json_data["esp_mac"]
+
+		if (typeof json_data.cam_pin_siod !== 'undefined') {
+			document.getElementById("camera").style.display = "block";
+		}
 	}).catch(error => {
 		conn_status = 0
 		error.message;
@@ -266,4 +270,25 @@ function trigger_reboot() {
 		error.message;
 		show_toast(error.message);
 	});
+}
+
+function toggle_camera_preview() {
+	const PREVIEW_ID = 'cam_preview'
+	const LOADING_ID = 'cam_preview_loading'
+
+	let preview = document.getElementById(PREVIEW_ID)
+	let container = document.getElementById('cam_preview_container')
+	if (preview) {
+		container.removeChild(preview)
+		document.getElementById(LOADING_ID).style.display = 'block'
+	}
+	else {
+		preview = document.createElement('img')
+		preview.src = '/api/camera/stream'
+		preview.id = PREVIEW_ID
+		preview.onload = function () {
+			document.getElementById(LOADING_ID).style.display = 'none'
+		}
+		container.appendChild(preview)
+	}
 }

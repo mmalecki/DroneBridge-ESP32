@@ -35,4 +35,7 @@ menu "DB Webserver Configuration"
         help
             Specify the mount point in VFS.
 
+    config ENABLE_CAMERA
+        bool "Enable camera support"
+
 endmenu

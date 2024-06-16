@@ -43,6 +43,11 @@
 #include "db_esp_now.h"
 #include "iot_button.h"
 
+#ifdef CONFIG_ENABLE_CAMERA
+#include <esp_camera.h>
+#include "camera.h"
+#endif
+
 #define NVS_NAMESPACE "settings"
 
 static const char *TAG = "DB_ESP32";
@@ -76,6 +81,49 @@ uint8_t DB_UART_RTS_THRESH = 64;
     #define DB_RESET_PIN GPIO_NUM_0
 #else
     #define DB_RESET_PIN GPIO_NUM_0
+#endif
+
+#ifdef CONFIG_ENABLE_CAMERA
+#define NVS_GET(TYPE, NAME) ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_ ## TYPE(my_handle, #NAME, &DB_ ## NAME))
+#define NVS_SET(TYPE, NAME) ESP_ERROR_CHECK(nvs_set_ ## TYPE(my_handle, #NAME, DB_ ## NAME))
+
+uint8_t DB_CAM_PIN_PWDN = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_RESET = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_XCLK = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_SIOD = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_SIOC = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_Y9 = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_Y8 = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_Y7 = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_Y6 = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_Y5 = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_Y4 = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_Y3 = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_Y2 = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_VSYNC= GPIO_NUM_0;
+uint8_t DB_CAM_PIN_HREF = GPIO_NUM_0;
+uint8_t DB_CAM_PIN_PCLK = GPIO_NUM_0;
+int32_t DB_CAM_XCLK_FREQ = 20000000;
+uint8_t DB_CAM_FPS = 24;
+uint8_t DB_CAM_JPG_QUALITY = 12;
+uint8_t DB_CAM_FRAME_SIZE = FRAMESIZE_VGA;
+
+/* uint8_t DB_CAM_PIN_PWDN = 15; */
+/* uint8_t DB_CAM_PIN_RESET = 6; */
+/* uint8_t DB_CAM_PIN_XCLK = 10; */
+/* uint8_t DB_CAM_PIN_SIOD= 4; */
+/* uint8_t DB_CAM_PIN_SIOC= 5; */
+/* uint8_t DB_CAM_PIN_Y9= 9; */
+/* uint8_t DB_CAM_PIN_Y8 = 11; */
+/* uint8_t DB_CAM_PIN_Y7 = 12; */
+/* uint8_t DB_CAM_PIN_Y6 = 14; */
+/* uint8_t DB_CAM_PIN_Y5 = 47; */
+/* uint8_t DB_CAM_PIN_Y4 = 42; */
+/* uint8_t DB_CAM_PIN_Y3 = 48; */
+/* uint8_t DB_CAM_PIN_Y2 = 21; */
+/* uint8_t DB_CAM_PIN_VSYNC= 7; */
+/* uint8_t DB_CAM_PIN_HREF = 16; */
+/* uint8_t DB_CAM_PIN_PCLK = 13; */
 #endif
 
 int32_t DB_UART_BAUD_RATE = 57600;
@@ -453,6 +501,29 @@ void write_settings_to_nvs() {
     ESP_ERROR_CHECK(nvs_set_str(my_handle, "ip_sta_gw", DB_STATIC_STA_IP_GW));
     ESP_ERROR_CHECK(nvs_set_str(my_handle, "ip_sta_netmsk", DB_STATIC_STA_IP_NETMASK));
 
+#ifdef CONFIG_ENABLE_CAMERA
+    NVS_SET(u8, CAM_PIN_PWDN);
+    NVS_SET(u8, CAM_PIN_RESET);
+    NVS_SET(u8, CAM_PIN_XCLK);
+    NVS_SET(u8, CAM_PIN_SIOD); 
+    NVS_SET(u8, CAM_PIN_SIOC); 
+    NVS_SET(u8, CAM_PIN_Y9);
+    NVS_SET(u8, CAM_PIN_Y8);
+    NVS_SET(u8, CAM_PIN_Y7);
+    NVS_SET(u8, CAM_PIN_Y6);
+    NVS_SET(u8, CAM_PIN_Y5);
+    NVS_SET(u8, CAM_PIN_Y4);
+    NVS_SET(u8, CAM_PIN_Y3);
+    NVS_SET(u8, CAM_PIN_Y2);
+    NVS_SET(u8, CAM_PIN_VSYNC);
+    NVS_SET(u8, CAM_PIN_HREF);
+    NVS_SET(u8, CAM_PIN_PCLK);
+    NVS_SET(i32, CAM_XCLK_FREQ);
+    NVS_SET(u8, CAM_FPS);
+    NVS_SET(u8, CAM_JPG_QUALITY);
+    NVS_SET(u8, CAM_FRAME_SIZE);
+#endif
+
     ESP_ERROR_CHECK(nvs_commit(my_handle));
     nvs_close(my_handle);
 }
@@ -510,6 +581,29 @@ void read_settings_nvs() {
         ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u8(my_handle, "proto", &DB_SERIAL_PROTOCOL));
         ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u16(my_handle, "trans_pack_size", &DB_TRANS_BUF_SIZE));
         ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u8(my_handle, "ltm_per_packet", &DB_LTM_FRAME_NUM_BUFFER));
+
+#ifdef CONFIG_ENABLE_CAMERA
+        NVS_GET(u8, CAM_PIN_PWDN);
+        NVS_GET(u8, CAM_PIN_RESET);
+        NVS_GET(u8, CAM_PIN_XCLK);
+        NVS_GET(u8, CAM_PIN_SIOD); 
+        NVS_GET(u8, CAM_PIN_SIOC); 
+        NVS_GET(u8, CAM_PIN_Y9);   
+        NVS_GET(u8, CAM_PIN_Y8);  
+        NVS_GET(u8, CAM_PIN_Y7);  
+        NVS_GET(u8, CAM_PIN_Y6);  
+        NVS_GET(u8, CAM_PIN_Y5);  
+        NVS_GET(u8, CAM_PIN_Y4);  
+        NVS_GET(u8, CAM_PIN_Y3);  
+        NVS_GET(u8, CAM_PIN_Y2);  
+        NVS_GET(u8, CAM_PIN_VSYNC);
+        NVS_GET(u8, CAM_PIN_HREF);
+        NVS_GET(u8, CAM_PIN_PCLK);
+        NVS_GET(i32, CAM_XCLK_FREQ);
+        NVS_GET(u8, CAM_FPS);
+        NVS_GET(u8, CAM_JPG_QUALITY);
+        NVS_GET(u8, CAM_FRAME_SIZE);
+#endif
 
         nvs_close(my_handle);
         ESP_LOGI(TAG,
@@ -628,6 +722,10 @@ void app_main() {
     }
 
     ESP_ERROR_CHECK(init_fs());
+
+#ifdef CONFIG_ENABLE_CAMERA
+    camera_init();
+#endif
     control_module();
 
     if (DB_WIFI_MODE != DB_WIFI_MODE_ESPNOW_AIR && DB_WIFI_MODE != DB_WIFI_MODE_ESPNOW_GND) {

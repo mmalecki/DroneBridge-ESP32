@@ -31,5 +31,6 @@ enum E_DB_WIFI_MODE {
 };
 
 void write_settings_to_nvs();
+__attribute__((noreturn)) void restart();
 
 #endif //DB_ESP32_MAIN_H

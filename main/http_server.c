@@ -517,7 +517,7 @@ static esp_err_t system_reboot_post_handler(httpd_req_t *req) {
     httpd_resp_sendstr(req, sys_info);
     free((void *) sys_info);
     cJSON_Delete(root);
-    esp_restart();
+    restart();
 }
 
 /**

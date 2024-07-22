@@ -625,7 +625,7 @@ void short_press_callback(void *arg,void *usr_data) {
     DB_WIFI_MODE = DB_WIFI_MODE_AP;
     strncpy((char *) DB_WIFI_PWD, "dronebridge", sizeof(DB_WIFI_PWD) - 1);
     write_settings_to_nvs();
-    esp_restart();
+    restart();
 }
 
 /**
@@ -651,7 +651,7 @@ void long_press_callback(void *arg,void *usr_data) {
     DB_TRANS_BUF_SIZE = 64;
     DB_UART_RTS_THRESH = 64;
     write_settings_to_nvs();
-    esp_restart();
+    restart();
 }
 
 /**
@@ -734,4 +734,11 @@ void app_main() {
         // Disable legacy support for DroneBridge communication module - no use case for DroneBridge for ESP32
         // communication_module();
     }
+}
+
+void restart() {
+#ifdef CONFIG_ENABLE_CAMERA
+    esp_camera_deinit();
+#endif
+    esp_restart();
 }

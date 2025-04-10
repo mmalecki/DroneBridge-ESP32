@@ -124,6 +124,14 @@ uint8_t DB_CAM_FRAME_SIZE = FRAMESIZE_VGA;
 /* uint8_t DB_CAM_PIN_VSYNC= 7; */
 /* uint8_t DB_CAM_PIN_HREF = 16; */
 /* uint8_t DB_CAM_PIN_PCLK = 13; */
+
+#ifdef CONFIG_ENABLE_CAMERA_SD
+uint8_t DB_CAM_SD_CLK = GPIO_NUM_0;
+uint8_t DB_CAM_SD_CMD = GPIO_NUM_0;
+uint8_t DB_CAM_SD_D0 = GPIO_NUM_0;
+
+#endif
+
 #endif
 
 int32_t DB_UART_BAUD_RATE = 57600;

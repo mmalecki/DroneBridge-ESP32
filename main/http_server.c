@@ -672,6 +672,17 @@ esp_err_t start_rest_server(const char *base_path) {
     };
     httpd_register_uri_handler(server, &camera_frame_get_uri);
 
+#ifdef CONFIG_ENABLE_CAMERA_SD
+    /* URI handler for capturing a single frame from the camera to the SD card */
+    httpd_uri_t camera_frame_capture_post_uri = {
+            .uri = "/api/camera/frame/capture",
+            .method = HTTP_POST,
+            .handler = camera_frame_capture_post_handler,
+            .user_ctx = rest_context
+    };
+    httpd_register_uri_handler(server, &camera_frame_capture_post_uri);
+#endif
+
     /* URI handler for getting a stream from the camera */
     httpd_uri_t camera_stream_get_uri = {
             .uri = "/api/camera/stream",

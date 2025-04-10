@@ -28,10 +28,21 @@
 #include "camera.h"
 #include "globals.h"
 
+#ifdef CONFIG_ENABLE_CAMERA_SD
+
+#include "esp_vfs_fat.h"
+#include "sdmmc_cmd.h"
+#include "driver/sdmmc_host.h"
+#include <sys/dirent.h>
+
+#endif
+
 #define FB_COUNT 2
 #define HTTP_MAX_CLIENTS 10
 
 #define PART_BOUNDARY "putin-khuylo"
+
+#define ERR_CAMERA_FRAME_NOT_JPEG "Camera frame not in JPEG format"
 
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
@@ -58,6 +69,102 @@ static uint64_t frame_number = 0;
 static TaskHandle_t camera_task_handle;
 static TaskHandle_t http_client_task_handles[HTTP_MAX_CLIENTS] = { NULL };
 
+#ifdef CONFIG_ENABLE_CAMERA_SD
+
+#define MOUNT_POINT "/media"
+#define JPG ".jpg"
+
+static char run_prefix[sizeof(MOUNT_POINT) + 5];
+static uint64_t capture_number = 0;
+
+esp_err_t camera_sd_find_run_prefix(char* prefix, char* result, size_t result_size) {
+    uint16_t num = 0;
+    DIR *dir;
+    do {
+        snprintf(result, result_size, "%s/%u", prefix, num);
+        ESP_LOGD(TAG, "Trying %s for SD run prefix", result);
+        dir = opendir(result);
+        if (dir) {
+            closedir(dir);
+        } else {
+            if (errno == ENOENT) {
+                ESP_LOGI(TAG, "Found SD run prefix: %s", result);
+                mkdir(result, 0777);
+                return ESP_OK;
+            } else {
+                ESP_LOGE(TAG, "Finding SD run prefix failed: %d", errno);
+                return ESP_FAIL;
+            }
+        }
+    } while (++num);
+    return ESP_FAIL;
+}
+
+esp_err_t camera_sd_init() {
+    esp_err_t err;
+
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+        .format_if_mount_failed = true, // TODO: definitely not
+        .max_files = 5,
+        .allocation_unit_size = 16 * 1024
+    };
+    sdmmc_card_t *card;
+    const char mount_point[] = MOUNT_POINT;
+    ESP_LOGI(TAG, "Initializing SD card");
+
+    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+    host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+
+    // This initializes the slot without card detect (CD) and write protect (WP) signals.
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+
+    slot_config.width = 1;
+    slot_config.clk = GPIO_NUM_39;
+    slot_config.cmd = GPIO_NUM_40;
+    slot_config.d0 = GPIO_NUM_38;
+    // TODO: config for 4
+    slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+
+
+    ESP_LOGI(TAG, "Mounting filesystem at "MOUNT_POINT);
+    err = esp_vfs_fat_sdmmc_mount(mount_point, &host, &slot_config, &mount_config, &card);
+
+    if (err != ESP_OK) {
+        if (err == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount filesystem");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize the card: %s", esp_err_to_name(err));
+        }
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "Filesystem mounted");
+
+    // Card has been initialized, print its properties
+    sdmmc_card_print_info(stdout, card);
+
+    camera_sd_find_run_prefix(MOUNT_POINT, run_prefix, sizeof(run_prefix));
+
+    return ESP_OK;
+}
+#endif
+
+
+esp_err_t camera_sd_write_file(uint8_t* data, size_t len) {
+    char filename[sizeof(run_prefix) + 21 + sizeof(JPG)];
+    snprintf(filename, sizeof(filename), "%s/%llu"JPG, run_prefix, capture_number++);
+    ESP_LOGD(TAG, "Opening file %s", filename);
+    FILE *f = fopen(filename, "w");
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open file %s for writing", filename);
+        return ESP_FAIL;
+    }
+    fwrite(data, len, 1, f);
+    fclose(f);
+    ESP_LOGD(TAG, "Finished writing file %s", filename);
+
+    return ESP_OK;
+}
+
 static void camera_task(void* params) {
     ESP_LOGI(TAG, "Entering camera task");
     TickType_t last_wake_time = xTaskGetTickCount();;
@@ -70,8 +177,15 @@ static void camera_task(void* params) {
         int64_t fr_start = esp_timer_get_time();
 
         camera_fb_t* fb = esp_camera_fb_get();
+
+        if (!fb) {
+            ESP_LOGW(TAG, "Camera frame capture failed");
+            vTaskDelayUntil(&last_wake_time, freq);
+            continue;
+        }
         size_t fb_l = fb->len;
 
+        // Semaphore section:
         xSemaphoreTake(frame_sync, portMAX_DELAY);
         if (frame_buffer_size < fb_l) {
             if (frame_buffer != NULL) free(frame_buffer);
@@ -85,6 +199,7 @@ static void camera_task(void* params) {
         esp_camera_fb_return(fb);
         frame_number++;
         xSemaphoreGive(frame_sync);
+
         int64_t fr_end = esp_timer_get_time();
 
         ESP_LOGD(TAG, "Frame %llu captured: %lu KB, took %lld ms", frame_number, (uint32_t)(fb_l/1024), (fr_end - fr_start) / 1000);
@@ -93,13 +208,14 @@ static void camera_task(void* params) {
             if (http_client_task_handles[client] != NULL)
                 xTaskNotifyGive(http_client_task_handles[client]);
         }
+
         vTaskDelayUntil(&last_wake_time, freq);
     }
 }
 
 static void client_handler_task(void* params) {
     esp_err_t res = ESP_OK;
-    char * part_buf[64]; // TODO: can be optimalized to strlen(_STREAM_PART) + n
+    char * part_buf[64]; // TODO: can be optimized to strlen(_STREAM_PART) + n
 
     camera_http_client_t* client = (camera_http_client_t*) params;
     ESP_LOGI(TAG, "Starting a HTTP client handler task #%d", client->index);
@@ -134,6 +250,7 @@ static void client_handler_task(void* params) {
     httpd_req_async_handler_complete(req);
     http_client_task_handles[client->index] = NULL;
     free(client);
+
     vTaskDelete(NULL);
 }
 
@@ -178,13 +295,19 @@ esp_err_t camera_init() {
         ESP_LOGW(TAG, "Camera init aborted, SIOC == SIOD - Configure first!");
         return ESP_FAIL;
     }
+
     esp_err_t err = esp_camera_init(&camera_config);
     if (err != ESP_OK) return err;
+
+#ifdef CONFIG_ENABLE_CAMERA_SD
+    camera_sd_init();
+#endif
 
     xTaskCreate(camera_task, "db_camera", 4096, NULL, 1, &camera_task_handle);
 
     return ESP_OK;
 }
+
 
 static size_t jpg_encode_stream(void * arg, size_t index, const void* data, size_t len){
     jpg_chunking_t *j = (jpg_chunking_t *)arg;
@@ -206,16 +329,14 @@ esp_err_t camera_frame_get_handler(httpd_req_t *req) {
 
     fb = esp_camera_fb_get();
     if (!fb) {
-        ESP_LOGE(TAG, "Camera capture failed");
+        ESP_LOGE(TAG, "Camera frame capture failed");
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
     res = httpd_resp_set_type(req, "image/jpeg");
     if(res == ESP_OK){
         res = httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
-    }
 
-    if(res == ESP_OK){
         if(fb->format == PIXFORMAT_JPEG){
             fb_len = fb->len;
             res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
@@ -228,10 +349,46 @@ esp_err_t camera_frame_get_handler(httpd_req_t *req) {
     }
     esp_camera_fb_return(fb);
     int64_t fr_end = esp_timer_get_time();
-    ESP_LOGI(TAG, "JPG: %lu KB %lu ms", (uint32_t)(fb_len/1024), (uint32_t)((fr_end - fr_start)/1000));
+    ESP_LOGI(TAG, "JPG capture over HTTP: %lu KB %lu ms", (uint32_t)(fb_len/1024), (uint32_t)((fr_end - fr_start)/1000));
     return res;
 }
 
+esp_err_t camera_frame_capture_post_handler(httpd_req_t *req) {
+    camera_fb_t * fb = NULL;
+    esp_err_t res = ESP_OK;
+    size_t fb_len = 0;
+    int64_t fr_start = esp_timer_get_time();
+
+    fb = esp_camera_fb_get();
+    if (!fb) {
+        ESP_LOGE(TAG, "Camera frame capture failed");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    if(res == ESP_OK){
+        // TODO: set Location header, respond with more appropriate HTTP code
+        /* res = httpd_resp_set_hdr(req, "Location", "capture.jpg"); */
+        if(fb->format == PIXFORMAT_JPEG){
+            fb_len = fb->len;
+            res = camera_sd_write_file(fb->buf, fb_len);
+            if (res == ESP_OK) {
+                httpd_resp_send_chunk(req, NULL, 0);
+            }
+            else {
+                httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Camera frame capture failed");
+            }
+        } else {
+            // TODO: This could be implemented.
+            ESP_LOGE(TAG, ERR_CAMERA_FRAME_NOT_JPEG);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, ERR_CAMERA_FRAME_NOT_JPEG);
+        }
+    }
+    esp_camera_fb_return(fb);
+    httpd_resp_send_chunk(req, NULL, 0);
+    int64_t fr_end = esp_timer_get_time();
+    ESP_LOGI(TAG, "JPG capture to SD: %lu KB %lu ms", (uint32_t)(fb_len/1024), (uint32_t)((fr_end - fr_start)/1000));
+    return res;
+}
 
 esp_err_t camera_stream_get_handler(httpd_req_t* req) {
     esp_err_t res = ESP_OK;

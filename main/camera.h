@@ -24,6 +24,7 @@
 
 esp_err_t camera_init();
 esp_err_t camera_frame_get_handler(httpd_req_t *req);
+esp_err_t camera_frame_capture_post_handler(httpd_req_t *req);
 esp_err_t camera_stream_get_handler(httpd_req_t *req);
 
 #endif // DB_ESP32_CAMERA_H

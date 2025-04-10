@@ -38,4 +38,7 @@ menu "DB Webserver Configuration"
     config ENABLE_CAMERA
         bool "Enable camera support"
 
+    config ENABLE_CAMERA_SD
+        bool "Enable camera SD card support"
+
 endmenu

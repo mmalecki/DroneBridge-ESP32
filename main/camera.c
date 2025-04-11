@@ -33,6 +33,7 @@
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
 #include "driver/sdmmc_host.h"
+#include "cJSON.h"
 #include <sys/dirent.h>
 
 #endif
@@ -359,6 +360,10 @@ esp_err_t camera_frame_capture_post_handler(httpd_req_t *req) {
     size_t fb_len = 0;
     int64_t fr_start = esp_timer_get_time();
 
+    char filename[sizeof(run_prefix) + 21 + sizeof(JPG)];
+
+    cJSON *resp = cJSON_CreateObject();
+
     fb = esp_camera_fb_get();
     if (!fb) {
         ESP_LOGE(TAG, "Camera frame capture failed");
@@ -370,9 +375,17 @@ esp_err_t camera_frame_capture_post_handler(httpd_req_t *req) {
         /* res = httpd_resp_set_hdr(req, "Location", "capture.jpg"); */
         if(fb->format == PIXFORMAT_JPEG){
             fb_len = fb->len;
-            res = camera_sd_write_file(fb->buf, fb_len);
+
+            res = camera_sd_write_image(filename, sizeof(filename), fb->buf, fb_len);
             if (res == ESP_OK) {
-                httpd_resp_send_chunk(req, NULL, 0);
+                httpd_resp_set_type(req, "application/json");
+                cJSON_AddNumberToObject(resp, "size", fb_len);
+                cJSON_AddStringToObject(resp, "filename", filename);
+
+                const char *resp_str = cJSON_Print(resp);
+                httpd_resp_sendstr(req, resp_str);
+                free((void *) resp_str);
+                cJSON_Delete(resp);
             }
             else {
                 httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Camera frame capture failed");
@@ -384,9 +397,8 @@ esp_err_t camera_frame_capture_post_handler(httpd_req_t *req) {
         }
     }
     esp_camera_fb_return(fb);
-    httpd_resp_send_chunk(req, NULL, 0);
     int64_t fr_end = esp_timer_get_time();
-    ESP_LOGI(TAG, "JPG capture to SD: %lu KB %lu ms", (uint32_t)(fb_len/1024), (uint32_t)((fr_end - fr_start)/1000));
+    ESP_LOGI(TAG, "JPG capture to SD: %lu KB %lu ms => %s", (uint32_t)(fb_len/1024), (uint32_t)((fr_end - fr_start)/1000), filename);
     return res;
 }
 

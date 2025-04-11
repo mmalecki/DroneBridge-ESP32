@@ -173,25 +173,28 @@ static void camera_task(void* params) {
     frame_sync = xSemaphoreCreateMutex();
 
     for (;;) {
+        vTaskDelayUntil(&last_wake_time, freq);
+
         ESP_LOGD(TAG, "Attempting to capture a frame");
         int64_t fr_start = esp_timer_get_time();
 
         camera_fb_t* fb = esp_camera_fb_get();
+        size_t fb_l = fb->len;
 
         if (!fb) {
             ESP_LOGW(TAG, "Camera frame capture failed");
-            vTaskDelayUntil(&last_wake_time, freq);
             continue;
         }
-        size_t fb_l = fb->len;
 
         // Semaphore section:
-        xSemaphoreTake(frame_sync, portMAX_DELAY);
+        if (xSemaphoreTake(frame_sync, portMAX_DELAY) == pdFALSE) {
+            ESP_LOGW(TAG, "Camera capture failed to take semaphore in allotted time");
+            continue;
+        }
+
         if (frame_buffer_size < fb_l) {
-            if (frame_buffer != NULL) free(frame_buffer);
-            /* frame_buffer = heap_caps_malloc(fb_l, MALLOC_CAP_SPIRAM); */
             ESP_LOGI(TAG, "Reallocating local frame buffer to %d bytes", fb_l);
-            frame_buffer = malloc(fb_l);
+            frame_buffer = realloc(frame_buffer, fb_l);
             frame_buffer_size = fb_l;
         }
         frame_buffer_length = fb_l;
@@ -217,6 +220,10 @@ static void client_handler_task(void* params) {
     esp_err_t res = ESP_OK;
     char part_buf[64]; // TODO: can be optimized to strlen(_STREAM_PART) + n
 
+    char* fb = NULL;   // temporary frame buffer
+    size_t fb_size = 0;
+    size_t fb_l = 0;
+
     camera_http_client_t* client = (camera_http_client_t*) params;
     ESP_LOGI(TAG, "Starting a HTTP client handler task #%d", client->index);
     httpd_req_t* req = client->req;
@@ -232,14 +239,24 @@ static void client_handler_task(void* params) {
         res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
         if (res != ESP_OK) break;
 
-        size_t hlen = snprintf(part_buf, sizeof(part_buf), _STREAM_PART, frame_buffer_size);
+        if (xSemaphoreTake(frame_sync, portMAX_DELAY) == pdFALSE) continue;
+
+        if (fb_size < frame_buffer_length) {
+            ESP_LOGI(TAG, "Reallocating client #%d frame buffer to %d bytes", client->index, frame_buffer_length);
+            fb = realloc(fb, frame_buffer_length);
+            fb_size = frame_buffer_length;
+        }
+        fb_l = frame_buffer_length;
+        memcpy(fb, frame_buffer, fb_l);
+        xSemaphoreGive(frame_sync);
+
+        size_t hlen = snprintf(part_buf, sizeof(part_buf), _STREAM_PART, fb_l);
 
         res = httpd_resp_send_chunk(req, part_buf, hlen);
         if (res != ESP_OK) break;
 
-        xSemaphoreTake(frame_sync, portMAX_DELAY);
-        res = httpd_resp_send_chunk(req, (const char *)frame_buffer, frame_buffer_size);
-        xSemaphoreGive(frame_sync);
+        res = httpd_resp_send_chunk(req, fb, fb_l);
+
         if (res != ESP_OK) break;
 
         int64_t fr_end = esp_timer_get_time();
@@ -250,6 +267,7 @@ static void client_handler_task(void* params) {
     httpd_req_async_handler_complete(req);
     http_client_task_handles[client->index] = NULL;
     free(client);
+    free(fb);
 
     vTaskDelete(NULL);
 }

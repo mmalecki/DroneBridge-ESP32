@@ -215,7 +215,7 @@ static void camera_task(void* params) {
 
 static void client_handler_task(void* params) {
     esp_err_t res = ESP_OK;
-    char * part_buf[64]; // TODO: can be optimized to strlen(_STREAM_PART) + n
+    char part_buf[64]; // TODO: can be optimized to strlen(_STREAM_PART) + n
 
     camera_http_client_t* client = (camera_http_client_t*) params;
     ESP_LOGI(TAG, "Starting a HTTP client handler task #%d", client->index);
@@ -232,9 +232,9 @@ static void client_handler_task(void* params) {
         res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
         if (res != ESP_OK) break;
 
-        size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, frame_buffer_size);
+        size_t hlen = snprintf(part_buf, sizeof(part_buf), _STREAM_PART, frame_buffer_size);
 
-        res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
+        res = httpd_resp_send_chunk(req, part_buf, hlen);
         if (res != ESP_OK) break;
 
         xSemaphoreTake(frame_sync, portMAX_DELAY);

@@ -1,6 +1,6 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  espressif/esp32-camera: "*"
+  espressif/esp32-camera: "^2.0.15"
   # espressif/mavlink: "^1.0.0~1"
   espressif/button: "^3.2.0"
   espressif/esp-now: "^2.5.1"

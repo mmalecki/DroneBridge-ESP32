@@ -82,7 +82,7 @@ esp_err_t camera_sd_find_run_prefix(char* prefix, char* result, size_t result_si
     uint16_t num = 0;
     DIR *dir;
     do {
-        snprintf(result, result_size, "%s/%u", prefix, num);
+        snprintf(result, result_size, "%s/%03u", prefix, num);
         ESP_LOGD(TAG, "Trying %s for SD run prefix", result);
         dir = opendir(result);
         if (dir) {
@@ -150,9 +150,8 @@ esp_err_t camera_sd_init() {
 #endif
 
 
-esp_err_t camera_sd_write_file(uint8_t* data, size_t len) {
-    char filename[sizeof(run_prefix) + 21 + sizeof(JPG)];
-    snprintf(filename, sizeof(filename), "%s/%llu"JPG, run_prefix, capture_number++);
+esp_err_t camera_sd_write_image(char* filename, size_t filename_size, uint8_t* data, size_t len) {
+    snprintf(filename, filename_size, "%s/%03llu"JPG, run_prefix, capture_number++);
     ESP_LOGD(TAG, "Opening file %s", filename);
     FILE *f = fopen(filename, "w");
     if (f == NULL) {

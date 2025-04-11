@@ -112,14 +112,10 @@ async function send_json(api_path, json_data = undefined) {
 
 function get_system_info() {
 	get_json("api/system/info").then(json_data => {
-		console.log("Received system info: " + json_data)
+		console.log("Received system info", json_data)
 		document.getElementById("about").innerHTML = "DroneBridge for ESP32 - v" + json_data["major_version"] +
 			"." + json_data["minor_version"] + " - esp-idf " + json_data["idf_version"]
 		document.getElementById("esp_mac").innerHTML = json_data["esp_mac"]
-
-		if (typeof json_data.cam_pin_siod !== 'undefined') {
-			document.getElementById("camera").style.display = "block";
-		}
 	}).catch(error => {
 		conn_status = 0
 		error.message;
@@ -191,7 +187,7 @@ function get_stats() {
  */
 function get_settings() {
 	get_json("api/settings").then(json_data => {
-		console.log("Received settings: " + json_data)
+		console.log("Received settings", json_data)
 		conn_status = 1
 		for (const key in json_data) {
 			if (json_data.hasOwnProperty(key)) {
@@ -200,6 +196,11 @@ function get_settings() {
 					elem.value = json_data[key] + ""
 				}
 			}
+		}
+
+		if (typeof json_data.cam_pin_siod !== 'undefined') {
+			document.getElementById("cam_settings").style.display = "block";
+			document.getElementById("cam_preview_section").style.display = "block";
 		}
 	}).catch(error => {
 		conn_status = 0
@@ -210,6 +211,15 @@ function get_settings() {
 	change_ap_ip_visibility();
 	change_msp_ltm_visibility();
 	return 0;
+}
+
+function capture_camera_picture() {
+	send_json('api/camera/frame/capture').then(() => {
+		show_toast('Picture captured!');
+		conn_status = 1;
+	}).catch(error => {
+		show_toast(error.message);
+	})
 }
 
 function add_new_udp_client() {

@@ -180,7 +180,7 @@
                     <input type="text" name="ap_ip" value="" id="ap_ip">
                 </div>
             </div>
-            <section id="camera" style="display: block">
+            <section id="cam_settings" style="display: none">
                 <h3>Camera</h3>
                 <div class="row">
                     <div class="three columns">
@@ -295,14 +295,21 @@
                         <input type="number" id="cam_fps" name="cam_fps" min="1" max="63" value="" />
                     </div>
                 </div>
-                <details ontoggle="toggle_camera_preview()">
-                    <summary>Camera preview</summary>
-                    <p id="cam_preview_loading">Loading...</p>
-                    <div id="cam_preview_container"></div>
-                </details>
             </section>
         </div>
     </form>
+
+    <section id="cam_preview_section" style="display: none">
+        <details ontoggle="toggle_camera_preview()">
+            <summary>Camera preview</summary>
+            <p id="cam_preview_loading">Loading...</p>
+            <div id="cam_preview_container"></div>
+            <div class="twelve columns">
+                <button class="button-primary" onclick="capture_camera_picture()">Capture picture to SD card</button>
+            </div>
+        </details>
+    </section>
+
     <div class="row">
         <div class="twelve columns">
             <button class="button-primary" onclick="add_new_udp_client()">add custom UDP target</button>

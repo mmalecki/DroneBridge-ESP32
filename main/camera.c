@@ -193,7 +193,7 @@ static void camera_task(void* params) {
         }
 
         if (frame_buffer_size < fb_l) {
-            ESP_LOGI(TAG, "Reallocating local frame buffer to %d bytes", fb_l);
+            ESP_LOGD(TAG, "Reallocating local frame buffer to %d bytes", fb_l);
             frame_buffer = realloc(frame_buffer, fb_l);
             frame_buffer_size = fb_l;
         }
@@ -242,7 +242,7 @@ static void client_handler_task(void* params) {
         if (xSemaphoreTake(frame_sync, portMAX_DELAY) == pdFALSE) continue;
 
         if (fb_size < frame_buffer_length) {
-            ESP_LOGI(TAG, "Reallocating client #%d frame buffer to %d bytes", client->index, frame_buffer_length);
+            ESP_LOGD(TAG, "Reallocating client #%d frame buffer to %d bytes", client->index, frame_buffer_length);
             fb = realloc(fb, frame_buffer_length);
             fb_size = frame_buffer_length;
         }

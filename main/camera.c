@@ -199,10 +199,10 @@ static void camera_task(void* params) {
         }
         frame_buffer_length = fb_l;
         memcpy(frame_buffer, fb->buf, fb_l);
-        esp_camera_fb_return(fb);
         frame_number++;
         xSemaphoreGive(frame_sync);
 
+        esp_camera_fb_return(fb);
         int64_t fr_end = esp_timer_get_time();
 
         ESP_LOGD(TAG, "Frame %llu captured: %lu KB, took %lld ms", frame_number, (uint32_t)(fb_l/1024), (fr_end - fr_start) / 1000);
